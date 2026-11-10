@@ -1,0 +1,7 @@
+{"_note": "Hand-written test answer, NOT a model output.",
+ "client_name": "Tola (Serene Glow Spa)", "business_type": "spa", "pages": 4, "pages_stated": false,
+ "page_names": ["home", "services and prices", "gallery", "contact"],
+ "features": [
+   {"name": "booking", "evidence": "book an appointment online"},
+   {"name": "payments", "evidence": "pay a deposit when they book"}],
+ "out_of_scope": [], "deadline": "before the end of November"}

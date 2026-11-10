@@ -1,0 +1,4 @@
+Hello LGND, my name is Tola and I run Serene Glow Spa in Lekki (this is a fictional test client).
+We need a website with a home page, a services and prices page, a gallery and a contact page.
+Clients should be able to book an appointment online and pay a deposit when they book.
+We would like it live before the end of November. Thank you!

@@ -1,0 +1,24 @@
+{
+  "client_name": "Tola",
+  "business_type": "Serene Glow Spa",
+  "pages": 4,
+  "pages_stated": true,
+  "page_names": [
+    "home page",
+    "services and prices page",
+    "gallery",
+    "contact page"
+  ],
+  "features": [
+    {
+      "name": "booking",
+      "evidence": "Clients should be able to book an appointment online"
+    },
+    {
+      "name": "payments",
+      "evidence": "pay a deposit when they book"
+    }
+  ],
+  "out_of_scope": [],
+  "deadline": "end of November"
+}
