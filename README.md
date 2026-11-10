@@ -4,6 +4,11 @@ A quote-to-payment agent loop for small web projects, built for the PayPal AI Ha
 
 Status: day 3 of the build. The full cycle turns once: enquiry to approved quote to PayPal sandbox invoice, paid, confirmed from PayPal's own record, and the client record updated.
 
+## Live demo
+https://legendonthisone.github.io/lgnd-cycle/
+
+The demo page downloads the real lgnd_cycle package from this repo and runs it in your browser with Pyodide. No server, no keys. Intake answers are replayed from real Claude on Amazon Bedrock recordings. The PayPal stations show a real sandbox run (docs/recorded/), because invoice keys cannot live in a public web page.
+
 ## The cycle
 enquiry -> Intake agent (AI, must quote the client's words) -> Pricing tool (code) -> Checker (code) -> Approval gate (human types 'approve') -> PayPal sandbox invoice for the 50% deposit (code, re-checked against the approved quote fingerprint) -> send -> client pays -> confirm PAID from PayPal (code, never the AI) -> Tracker starts the build clock and queues the balance invoice
 

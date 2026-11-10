@@ -1,0 +1,482 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LGND Cycle</title>
+<meta name="description" content="A quote-to-payment agent loop with PayPal sandbox invoicing. The real Python code runs in your browser.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0a0a0b; --panel:#131316; --panel2:#1a1a1f; --line:#2a2a31; --text:#f2f1ec; --muted:#9a99a3;
+  --accent:#e9c46a; --ok:#3ddc97; --warn:#f4a259; --bad:#ef476f; --blue:#5aa9ff;
+  --sans:"Space Grotesk",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:var(--sans);line-height:1.5}
+a{color:var(--accent)}
+.wrap{max-width:1180px;margin:0 auto;padding:24px 16px 64px}
+header{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:flex-end;justify-content:space-between;border-bottom:1px solid var(--line);padding-bottom:18px}
+.brand{font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
+h1{margin:4px 0 0;font-size:clamp(30px,5vw,46px);line-height:1.05;font-weight:700;letter-spacing:-.02em}
+h1 span{color:var(--accent)}
+.tag{color:var(--muted);margin:6px 0 0;max-width:620px}
+.hlinks{display:flex;gap:16px;font-size:14px}
+#status{margin:18px 0;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--panel);font-size:14px;display:flex;gap:10px;align-items:center}
+#status .dot{width:9px;height:9px;border-radius:50%;background:var(--warn);flex:none;animation:pulse 1.2s infinite}
+#status.ready .dot{background:var(--ok);animation:none}
+#status.err .dot{background:var(--bad);animation:none}
+@keyframes pulse{50%{opacity:.3}}
+.scen{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:22px}
+.scen button{all:unset;cursor:pointer;padding:14px 16px;border:1px solid var(--line);border-radius:12px;background:var(--panel);transition:border-color .2s,transform .2s}
+.scen button:hover:not([disabled]){border-color:var(--accent);transform:translateY(-1px)}
+.scen button[disabled]{opacity:.45;cursor:not-allowed}
+.scen button.on{border-color:var(--accent);background:var(--panel2)}
+.scen b{display:block;font-size:16px}
+.scen small{color:var(--muted);font-size:13px}
+.scen .k{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.main{display:grid;grid-template-columns:minmax(300px,440px) 1fr;gap:24px;align-items:start}
+.ringbox{position:sticky;top:16px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:12px}
+svg{width:100%;height:auto;display:block}
+.track{fill:none;stroke:var(--line);stroke-width:2}
+.inner{fill:none;stroke:#24242b;stroke-width:1;stroke-dasharray:3 6}
+.arc{fill:none;stroke:#2f2f37;stroke-width:4;stroke-linecap:round;transition:stroke .5s}
+.arc.done{stroke:var(--ok)}
+.arc.bad{stroke:var(--bad)}
+.st circle{fill:var(--panel2);stroke:#3a3a44;stroke-width:2;transition:all .4s}
+.st text.n{fill:var(--muted);font:600 15px var(--mono);text-anchor:middle;dominant-baseline:central}
+.st text.l{fill:var(--muted);font:500 13px var(--sans);text-anchor:middle;dominant-baseline:central}
+.st.active circle{stroke:var(--accent);fill:#2a2412}
+.st.active text{fill:var(--accent)}
+.st.done circle{stroke:var(--ok);fill:#0f241b}
+.st.done text{fill:var(--ok)}
+.st.bad circle{stroke:var(--bad);fill:#2a0f17}
+.st.bad text{fill:var(--bad)}
+.st.recorded circle{stroke:var(--blue);fill:#0f1a2a}
+.st.recorded text{fill:var(--blue)}
+.center1{fill:var(--text);font:700 22px var(--sans);text-anchor:middle}
+.center2{fill:var(--muted);font:400 12.5px var(--sans);text-anchor:middle}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--muted);padding:6px 6px 2px}
+.legend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:0}
+.feed{display:flex;flex-direction:column;gap:14px;min-height:300px}
+.empty{color:var(--muted);border:1px dashed var(--line);border-radius:14px;padding:28px;text-align:center}
+.card{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--line);border-radius:12px;padding:16px 18px;animation:in .35s ease}
+.card.ok{border-left-color:var(--ok)} .card.warn{border-left-color:var(--warn)} .card.bad{border-left-color:var(--bad)} .card.gold{border-left-color:var(--accent)} .card.rec{border-left-color:var(--blue)}
+@keyframes in{from{opacity:0;transform:translateY(6px)}}
+.card h3{margin:0 0 2px;font-size:17px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.who{font:600 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:5px;background:#24242b;color:var(--muted)}
+.who.ai{background:#2a2412;color:var(--accent)} .who.code{background:#10202a;color:var(--blue)} .who.human{background:#22132a;color:#d7a6ff} .who.pp{background:#0f1a2a;color:var(--blue)}
+.why{color:var(--muted);font-size:13.5px;margin:2px 0 10px}
+.krebs{color:#6f6e78;font-size:12px;font-style:italic;margin-top:10px}
+.quote{font-family:var(--mono);font-size:13px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;white-space:pre-wrap;word-break:break-word}
+mark{background:rgba(61,220,151,.18);color:var(--text);border-bottom:2px solid var(--ok);padding:0 1px}
+table{width:100%;border-collapse:collapse;font-size:14px}
+td{padding:6px 0;border-bottom:1px solid var(--line)}
+td:last-child{text-align:right;font-family:var(--mono)}
+tr.tot td{border-bottom:none;font-weight:700;padding-top:10px}
+.kv{display:grid;grid-template-columns:max-content 1fr;gap:4px 14px;font-size:14px}
+.kv dt{color:var(--muted)} .kv dd{margin:0;word-break:break-word}
+.mono{font-family:var(--mono);font-size:13px}
+.badge{font:700 12px var(--mono);padding:3px 8px;border-radius:6px}
+.badge.PASS{background:#0f241b;color:var(--ok)} .badge.NEEDS_REVIEW{background:#2a1d0f;color:var(--warn)} .badge.BLOCKED{background:#2a0f17;color:var(--bad)}
+ul.l{margin:6px 0 0;padding-left:20px;font-size:14px} ul.l li{margin:3px 0}
+.bad-t{color:var(--bad)} .ok-t{color:var(--ok)} .warn-t{color:var(--warn)}
+.gaterow{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.gaterow input{flex:1;min-width:160px;background:var(--bg);border:1px solid var(--line);border-radius:8px;color:var(--text);font:15px var(--mono);padding:10px 12px}
+.gaterow input:focus{outline:none;border-color:var(--accent)}
+.btn{all:unset;cursor:pointer;background:var(--accent);color:#111;font-weight:700;font-size:14px;padding:10px 16px;border-radius:8px}
+.btn.ghost{background:transparent;color:var(--text);border:1px solid var(--line)}
+.btn:hover{filter:brightness(1.1)}
+.note{font-size:13px;color:var(--muted);margin-top:8px}
+.out{margin-top:10px;font-size:14px}
+.reclabel{display:inline-block;font:600 11px var(--mono);letter-spacing:.05em;color:var(--blue);border:1px solid #23415f;border-radius:5px;padding:2px 7px;margin:12px 0 6px}
+.logs{margin-top:28px;background:var(--panel);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.tabs{display:flex;border-bottom:1px solid var(--line);overflow-x:auto}
+.tabs button{all:unset;cursor:pointer;padding:12px 16px;font-size:14px;color:var(--muted);white-space:nowrap;border-bottom:2px solid transparent}
+.tabs button.on{color:var(--text);border-bottom-color:var(--accent)}
+.logbody{padding:14px 16px;max-height:340px;overflow:auto}
+.logline{font-family:var(--mono);font-size:12px;white-space:pre-wrap;word-break:break-all;padding:3px 0;border-bottom:1px solid #1d1d22;color:#c9c8cf}
+.logline b{color:var(--accent);font-weight:600}
+.logintro{font-size:13px;color:var(--muted);margin:0 0 10px}
+footer{margin-top:40px;padding-top:18px;border-top:1px solid var(--line);color:var(--muted);font-size:13px;display:flex;flex-wrap:wrap;gap:8px 24px;justify-content:space-between}
+@media (max-width:860px){
+  .main{grid-template-columns:1fr}
+  .ringbox{position:static;max-width:440px;margin:0 auto;width:100%}
+  .scen{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <div class="brand">LGND Studio . PayPal AI Hackathon</div>
+      <h1>LGND <span>Cycle</span></h1>
+      <p class="tag">A quote-to-payment agent loop for small web projects. The AI reads the enquiry, plain code decides the price, a human approves, and only PayPal can say "paid".</p>
+    </div>
+    <div class="hlinks">
+      <a href="https://github.com/legendonthisone/lgnd-cycle" target="_blank" rel="noopener">Source code</a>
+      <a href="#how">How this demo works</a>
+    </div>
+  </header>
+
+  <div id="status"><span class="dot"></span><span id="statustext">Loading Python into your browser and fetching the real lgnd_cycle code from GitHub. This takes a few seconds the first time.</span></div>
+
+  <div class="scen" id="scen">
+    <button data-s="tola" disabled><span class="k">Scenario 1 . full turn</span><b>Tola, Serene Glow Spa</b><small>4 pages, online booking and deposits. Taken all the way through a real PayPal sandbox payment.</small></button>
+    <button data-s="kemi" disabled><span class="k">Scenario 2 . small job</span><b>Kemi's Nails</b><small>"Nothing fancy, budget is small." Watch the AI add nothing extra.</small></button>
+    <button data-s="rogue" disabled><span class="k">Scenario 3 . the AI lies</span><b>Kemi, with an invented feature</b><small>A test answer that adds online booking she never asked for. Watch the Checker stop it.</small></button>
+  </div>
+
+  <div class="main">
+    <div class="ringbox">
+      <svg id="ring" viewBox="0 0 460 460" role="img" aria-label="The six stations of the LGND Cycle"></svg>
+      <div class="legend"><span><i style="background:var(--accent)"></i>working</span><span><i style="background:var(--ok)"></i>done in your browser</span><span><i style="background:var(--blue)"></i>recorded real PayPal sandbox</span><span><i style="background:var(--bad)"></i>stopped</span></div>
+    </div>
+    <div class="feed" id="feed"><div class="empty">Pick a scenario above to turn the cycle.</div></div>
+  </div>
+
+  <div class="logs">
+    <div class="tabs"><button class="on" data-t="live">Audit log: this run, in your browser</button><button data-t="rec">Audit log: real PayPal sandbox run</button></div>
+    <div class="logbody" id="logbody"><p class="logintro">Every step writes one line here, using the same Audit class as the command-line version.</p></div>
+  </div>
+
+  <section id="how" style="margin-top:28px" class="card">
+    <h3>How this demo works</h3>
+    <ul class="l">
+      <li>Your browser downloads the real <span class="mono">lgnd_cycle</span> Python package straight from the public GitHub repo and runs it with Pyodide (Python compiled to run in a web page). Same code, no server, no keys.</li>
+      <li>The Intake agent's answers are recordings of real calls to Claude on Amazon Bedrock (replay mode), so the demo costs nothing and gives the same answer every time. Scenario 3 uses a hand-written test answer on purpose.</li>
+      <li>Pricing, Checker, Approval gate, the invoice body and the Tracker all run live, in your browser, from the repo code.</li>
+      <li>Creating and paying a PayPal invoice needs secret keys, so it cannot run in a public web page. The PayPal stations show a real sandbox run from 23 Oct and 10 Nov 2026, marked in blue, with its own audit log. To run it yourself, follow the README with your own sandbox keys.</li>
+    </ul>
+  </section>
+
+  <footer>
+    <span>Built by Ayobami Ajetunmobi for the PayPal AI Hackathon 2026. All clients are fictional. PayPal sandbox only: no real money moves.</span>
+    <span>MIT licence</span>
+  </footer>
+</div>
+
+<script>
+(() => {
+const params = new URLSearchParams(location.search);
+const LOCAL = params.get("src") === "local";
+const SRC = LOCAL ? "../" : "https://raw.githubusercontent.com/legendonthisone/lgnd-cycle/main/";
+const PYO = LOCAL ? "./pyodide/" : "https://cdn.jsdelivr.net/pyodide/v0.26.4/full/";
+const FILES = ["lgnd_cycle/__init__.py","lgnd_cycle/audit.py","lgnd_cycle/checker.py","lgnd_cycle/gate.py",
+  "lgnd_cycle/intake.py","lgnd_cycle/llm.py","lgnd_cycle/paypal.py","lgnd_cycle/pricing.py","lgnd_cycle/tracker.py",
+  "fixtures/recorded_intake_enquiry_spa.json","fixtures/recorded_intake_enquiry_tricky.json",
+  "fixtures/mock_intake_enquiry_tricky.json","samples/enquiry_spa.txt","samples/enquiry_tricky.txt"];
+
+const DRIVER = `
+import json, copy, os, io, contextlib
+from dataclasses import asdict
+from lgnd_cycle.audit import Audit
+from lgnd_cycle import intake as intake_agent, gate, paypal, tracker
+from lgnd_cycle.pricing import price
+from lgnd_cycle.checker import check
+
+SCEN = {"tola": ("samples/enquiry_spa.txt", "replay"),
+        "kemi": ("samples/enquiry_tricky.txt", "replay"),
+        "rogue": ("samples/enquiry_tricky.txt", "mock")}
+S = {}
+
+def _lines():
+    a = S.get("audit")
+    if not a or not os.path.exists(a.path):
+        return []
+    return [l for l in open(a.path, encoding="utf-8").read().splitlines() if l.strip()]
+
+def start(name):
+    path, mode = SCEN[name]
+    key = os.path.splitext(os.path.basename(path))[0]
+    text = open(path, encoding="utf-8").read()
+    audit = Audit()
+    audit.log("enquiry_received", source=path, mode=mode, paypal="off")
+    facts = intake_agent.run(text, mode, key)
+    audit.log("intake_done", intake=facts)
+    quote = price(facts["pages"], [f["name"] for f in facts.get("features", [])])
+    audit.log("priced", quote=asdict(quote))
+    verdict = check(text, facts, quote)
+    audit.log("checked", verdict=verdict)
+    gate_out = None
+    if verdict["status"] == "BLOCKED":
+        gate_out = gate.review(quote, verdict, ask=lambda _: "")
+        audit.log("gate", **gate_out)
+    S.clear()
+    S.update(name=name, facts=facts, quote=quote, verdict=verdict, audit=audit, approval=None)
+    return json.dumps({"text": text, "mode": mode, "facts": facts, "quote": asdict(quote),
+                       "verdict": verdict, "gate": gate_out,
+                       "fingerprint": gate.fingerprint(quote), "log": _lines()})
+
+def approve(answer):
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        a = gate.review(S["quote"], S["verdict"], ask=lambda _: answer)
+    S["audit"].log("gate", **a)
+    out = {"approval": a, "printed": buf.getvalue()}
+    if a["decision"] == "approved":
+        S["approval"] = a
+        inv = paypal.create_deposit_invoice(S["quote"], a, S["facts"].get("client_name"),
+                                            S["audit"].run_id, mode="off")
+        S["audit"].log("invoice_created", **inv)
+        out["invoice"] = inv
+        out["body"] = paypal.invoice_body(S["quote"], S["facts"].get("client_name"), S["audit"].run_id)
+    out["log"] = _lines()
+    return json.dumps(out)
+
+def tamper():
+    q = copy.deepcopy(S["quote"])
+    q.deposit = q.deposit - 1
+    try:
+        paypal.create_deposit_invoice(q, S["approval"], S["facts"].get("client_name"),
+                                      S["audit"].run_id, mode="off")
+        res = {"refused": False, "error": ""}
+    except PermissionError as e:
+        res = {"refused": True, "error": str(e)}
+    S["audit"].log("demo_tamper_test", changed="deposit minus $1 after approval", **res)
+    return json.dumps({**res, "before": gate.fingerprint(S["quote"]), "after": gate.fingerprint(q),
+                       "log": _lines()})
+
+def track(invoice_id, payment_id, paid_at):
+    q = asdict(S["quote"])
+    amt = f"{S['quote'].deposit:.2f}"
+    rec, changed = tracker.record_deposit(S["audit"].run_id, S["facts"].get("client_name"), q,
+                                          invoice_id, payment_id, amt, paid_at=paid_at,
+                                          path="tracker/clients.json")
+    if changed:
+        S["audit"].log("tracker_updated", status=rec["status"], due_by=rec["build_clock"]["due_by"],
+                       queued=rec["next_invoices"])
+    _, again = tracker.record_deposit(S["audit"].run_id, S["facts"].get("client_name"), q,
+                                      invoice_id, payment_id, amt, paid_at=paid_at,
+                                      path="tracker/clients.json")
+    return json.dumps({"record": rec, "changed": changed, "again_changed": again, "log": _lines()})
+`;
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+let py, recorded = [], liveLog = [], busy = false, tab = "live";
+
+/* ---------- ring ---------- */
+const ST = [["Intake","AI"],["Pricing","code"],["Checker","code"],["Gate","human"],["PayPal","invoice"],["Paid","+ tracker"]];
+const C = 230, R = 150;
+function pt(i, r = R){ const a = (-90 + i * 60) * Math.PI / 180; return [C + r * Math.cos(a), C + r * Math.sin(a)]; }
+function drawRing(){
+  let h = `<circle class="track" cx="${C}" cy="${C}" r="${R}"/><circle class="inner" cx="${C}" cy="${C}" r="${R - 34}"/>`;
+  for (let i = 0; i < 6; i++){
+    const a1 = (-90 + i * 60 + 12) * Math.PI / 180, a2 = (-90 + (i + 1) * 60 - 12) * Math.PI / 180;
+    h += `<path class="arc" id="arc${i}" d="M${C + R * Math.cos(a1)} ${C + R * Math.sin(a1)} A${R} ${R} 0 0 1 ${C + R * Math.cos(a2)} ${C + R * Math.sin(a2)}"/>`;
+  }
+  ST.forEach(([l, s], i) => {
+    const [x, y] = pt(i), [lx, ly] = pt(i, R + 54);
+    h += `<g class="st" id="st${i}"><circle cx="${x}" cy="${y}" r="25"/><text class="n" x="${x}" y="${y}">${i + 1}</text>
+      <text class="l" x="${lx}" y="${ly - 8}">${l}</text><text class="l" x="${lx}" y="${ly + 9}" style="font-size:11px;opacity:.75">${s}</text></g>`;
+  });
+  h += `<text class="center1" id="c1" x="${C}" y="${C - 4}">Ready</text><text class="center2" id="c2" x="${C}" y="${C + 20}">pick a scenario</text>`;
+  $("#ring").innerHTML = h;
+}
+function setSt(i, cls){ const g = $("#st" + i); g.classList.remove("active","done","bad","recorded"); if (cls) g.classList.add(cls); }
+function setArc(i, cls){ const a = $("#arc" + i); a.classList.remove("done","bad"); if (cls) a.classList.add(cls); }
+function center(a, b){ $("#c1").textContent = a; $("#c2").textContent = b; }
+function resetRing(){ for (let i = 0; i < 6; i++){ setSt(i, null); setArc(i, null); } }
+
+/* ---------- feed ---------- */
+function card(cls, html){ const d = document.createElement("div"); d.className = "card " + cls; d.innerHTML = html; $("#feed").appendChild(d); d.scrollIntoView({behavior:"smooth", block:"nearest"}); return d; }
+function head(title, who, whoCls){ return `<h3>${title} <span class="who ${whoCls}">${who}</span></h3>`; }
+
+function highlight(text, feats){
+  let out = esc(text);
+  feats.forEach(f => {
+    const ev = esc(f.evidence || "");
+    if (ev && out.toLowerCase().includes(ev.toLowerCase())){
+      const i = out.toLowerCase().indexOf(ev.toLowerCase());
+      out = out.slice(0, i) + "<mark>" + out.slice(i, i + ev.length) + "</mark>" + out.slice(i + ev.length);
+    }
+  });
+  return out;
+}
+
+/* ---------- logs ---------- */
+function renderLog(){
+  const lines = tab === "live" ? liveLog : recorded;
+  const intro = tab === "live"
+    ? "Written by the same Audit class as the command line version, running in your browser right now."
+    : "The real run log from the PayPal sandbox: invoice created 23 Oct 2026, sent and paid 10 Nov 2026. Copied unchanged from runs/20261023-130655-131de3.jsonl.";
+  $("#logbody").innerHTML = `<p class="logintro">${intro}</p>` + (lines.length ? lines.map(l => {
+    let step = ""; try { step = JSON.parse(l).step; } catch(e){}
+    return `<div class="logline"><b>${esc(step)}</b>  ${esc(l)}</div>`;
+  }).join("") : `<p class="logintro">Nothing yet.</p>`);
+}
+document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => {
+  document.querySelectorAll(".tabs button").forEach(x => x.classList.toggle("on", x === b)); tab = b.dataset.t; renderLog();
+});
+
+/* ---------- python ---------- */
+const call = (fn, ...a) => JSON.parse(py.globals.get(fn)(...a));
+
+async function boot(){
+  try {
+    await new Promise((res, rej) => { const s = document.createElement("script"); s.src = PYO + "pyodide.js"; s.onload = res; s.onerror = () => rej(new Error("could not load Pyodide")); document.head.appendChild(s); });
+    py = await loadPyodide({ indexURL: PYO });
+    const texts = await Promise.all(FILES.map(async f => { const r = await fetch(SRC + f, {cache:"no-cache"}); if (!r.ok) throw new Error("could not fetch " + f); return r.text(); }));
+    const root = "/home/pyodide/app";
+    FILES.forEach((f, i) => { const dir = root + "/" + f.split("/").slice(0, -1).join("/"); py.FS.mkdirTree(dir); py.FS.writeFile(root + "/" + f, texts[i]); });
+    py.runPython(`import os, sys\nos.chdir("${root}")\nsys.path.insert(0, "${root}")`);
+    py.runPython(DRIVER);
+    try { const r = await fetch("recorded/tola-sandbox-run.jsonl", {cache:"no-cache"}); if (r.ok) recorded = (await r.text()).split("\n").filter(Boolean); } catch(e){}
+    $("#status").classList.add("ready");
+    $("#statustext").innerHTML = `Ready. Python ${esc(py.runPython("import sys; sys.version.split()[0]"))} (Pyodide ${esc(py.version)}) is running <span class="mono">lgnd_cycle</span> from <a href="https://github.com/legendonthisone/lgnd-cycle" target="_blank" rel="noopener">github.com/legendonthisone/lgnd-cycle</a> inside your browser.`;
+    document.querySelectorAll("#scen button").forEach(b => b.disabled = false);
+    renderLog();
+  } catch(e){
+    $("#status").classList.add("err");
+    $("#statustext").textContent = "Could not start: " + e.message + ". Refresh to try again, or run it locally with the README steps.";
+  }
+}
+
+document.querySelectorAll("#scen button").forEach(b => b.onclick = () => { if (!busy) run(b.dataset.s); });
+
+/* ---------- the cycle ---------- */
+async function run(name){
+  busy = true;
+  document.querySelectorAll("#scen button").forEach(x => x.classList.toggle("on", x.dataset.s === name));
+  $("#feed").innerHTML = ""; resetRing();
+  const r = call("start", name);
+  liveLog = r.log; renderLog();
+  const f = r.facts, q = r.quote, v = r.verdict;
+
+  // 1 Intake
+  setSt(0, "active"); center("Intake", "the AI reads the enquiry"); await sleep(500);
+  const src = r.mode === "replay"
+    ? "Recorded answer from Claude on Amazon Bedrock (replay mode)"
+    : "Hand-written test answer that invents a feature (not a model output)";
+  const feats = f.features || [];
+  card(r.mode === "replay" ? "gold" : "bad",
+    head("1. Intake agent", "AI", "ai") +
+    `<p class="why">Reads the client's message and pulls out pages and features. Rule: every feature must quote the client's exact words. ${esc(src)}.</p>` +
+    `<div class="quote">${highlight(r.text, feats)}</div>` +
+    `<dl class="kv" style="margin-top:12px"><dt>Client</dt><dd>${esc(f.client_name)}</dd><dt>Pages</dt><dd>${esc(f.pages)}${f.pages_stated ? "" : " (estimated)"}</dd>` +
+    `<dt>Features</dt><dd>${feats.length ? feats.map(x => `<b>${esc(x.name)}</b> because the client wrote "${esc(x.evidence)}"`).join("<br>") : "none asked for"}</dd></dl>` +
+    `<p class="krebs">Krebs view: the enquiry is the acetyl-CoA that enters the cycle. Highlighted words are the evidence found in the client's message.</p>`);
+  setSt(0, "done"); setArc(0, "done"); await sleep(450);
+
+  // 2 Pricing
+  setSt(1, "active"); center("Pricing", "plain code, no AI"); await sleep(450);
+  card("ok", head("2. Pricing tool", "code", "code") +
+    `<p class="why">The maths lives in code, so the same project always gets the same price. The AI never touches a number.</p>` +
+    `<table>${q.line_items.map(li => `<tr><td>${esc(li.item)}</td><td>$${li.usd}</td></tr>`).join("")}` +
+    `<tr class="tot"><td>Total</td><td>$${q.total}</td></tr><tr><td>Deposit (50%)</td><td>$${q.deposit}</td></tr><tr><td>Timeline</td><td>${esc(q.weeks)}</td></tr></table>`);
+  setSt(1, "done"); setArc(1, "done"); await sleep(450);
+
+  // 3 Checker
+  setSt(2, "active"); center("Checker", "re-checks the AI"); await sleep(450);
+  const blocked = v.status === "BLOCKED";
+  card(blocked ? "bad" : (v.status === "PASS" ? "ok" : "warn"), head("3. Checker", "code", "code") +
+    `<p class="why">Plain code that refuses anything the evidence does not support, and re-runs the price from scratch. It is code on purpose: code cannot be talked into agreeing.</p>` +
+    `<span class="badge ${v.status}">${v.status}</span>` +
+    (v.problems.length ? `<ul class="l">${v.problems.map(p => `<li class="bad-t">${esc(p)}</li>`).join("")}</ul>` : "") +
+    (v.warnings.length ? `<ul class="l">${v.warnings.map(p => `<li class="warn-t">${esc(p)}</li>`).join("")}</ul>` : "") +
+    (!v.problems.length && !v.warnings.length ? `<p class="out ok-t">Every feature is backed by the client's own words, and the price matches a fresh recalculation.</p>` : "") +
+    (blocked ? `<p class="krebs">Krebs view: the invented feature leaves the cycle as CO2. Nothing downstream ever sees it.</p>` : ""));
+  if (blocked){
+    setSt(2, "bad"); setArc(2, "bad");
+    setSt(3, "bad");
+    card("bad", head("4. Approval gate", "human", "human") +
+      `<p class="why">The gate did not even ask. A BLOCKED quote can never be approved, so no invoice can exist.</p>` +
+      `<p class="out mono">decision: ${esc(r.gate.decision)}</p>` +
+      `<p class="krebs">Krebs view: feedback inhibition. The cycle stops itself instead of producing a wrong invoice.</p>`);
+    center("Stopped", "the Checker caught the AI");
+    liveLog = r.log; renderLog(); busy = false; return;
+  }
+  setSt(2, "done"); setArc(2, "done"); await sleep(400);
+
+  // 4 Gate
+  setSt(3, "active"); center("Gate", "waiting for a human");
+  const g = card("gold", head("4. Approval gate", "human", "human") +
+    `<p class="why">Nothing is sent to a client until a human types the word <b>approve</b> in full. "y" or "yes" do not count. The approval is tied to a fingerprint of this exact quote.</p>` +
+    `<dl class="kv"><dt>Deposit invoice</dt><dd>$${q.deposit} (50% of $${q.total})</dd><dt>Quote fingerprint</dt><dd class="mono">${esc(r.fingerprint)}</dd></dl>` +
+    `<div class="gaterow"><input id="gatein" placeholder="type approve, or try yes" autocomplete="off" aria-label="Approval"><button class="btn" id="gatebtn">Submit</button></div><div id="gateout" class="out"></div>`);
+  busy = false;
+  $("#gatein").focus();
+  const submit = async () => {
+    if (busy) return; busy = true;
+    const a = call("approve", $("#gatein").value);
+    liveLog = a.log; renderLog();
+    if (a.approval.decision !== "approved"){
+      $("#gateout").innerHTML = `<span class="bad-t">Rejected.</span> The gate recorded <span class="mono">${esc(a.approval.decision)}</span>. Only the full word "approve" moves money. Try again.`;
+      busy = false; return;
+    }
+    $("#gatein").disabled = true; $("#gatebtn").remove();
+    $("#gateout").innerHTML = `<span class="ok-t">Approved.</span> Fingerprint <span class="mono">${esc(a.approval.fingerprint)}</span> is now locked to this quote.`;
+    g.className = "card ok";
+    setSt(3, "done"); setArc(3, "done");
+    await sleep(450);
+    await invoiceStep(name, a, q);
+    busy = false;
+  };
+  $("#gatebtn").onclick = submit;
+  $("#gatein").onkeydown = e => { if (e.key === "Enter") submit(); };
+}
+
+async function invoiceStep(name, a, q){
+  setSt(4, "active"); center("PayPal", "50% deposit invoice"); await sleep(450);
+  const inv = a.invoice, body = a.body;
+  const rec = recorded.map(l => JSON.parse(l));
+  const created = rec.find(x => x.step === "invoice_created"), sent = rec.find(x => x.step === "invoice_sent");
+  const paid = rec.find(x => x.step === "deposit_confirmed"), tr = rec.find(x => x.step === "tracker_updated");
+  const rgate = rec.find(x => x.step === "gate");
+  const isTola = name === "tola" && created && paid;
+
+  const c = card(isTola ? "rec" : "ok", head("5. PayPal deposit invoice", "code + PayPal", "pp") +
+    `<p class="why">Code builds the invoice from the approved quote, never from the AI, and re-checks the fingerprint before any money is asked for. Each call carries a PayPal-Request-Id, so a retry cannot create a second invoice.</p>` +
+    `<dl class="kv"><dt>Built in your browser</dt><dd>invoice <span class="mono">${esc(inv.invoice_number)}</span> for <b>$${esc(inv.amount)}</b> (dry run: the browser has no PayPal keys)</dd>` +
+    `<dt>Line item</dt><dd>${esc(body.items[0].name)}: ${esc(body.items[0].description)}</dd><dt>Note</dt><dd>${esc(body.detail.note)}</dd></dl>` +
+    (isTola ? `<span class="reclabel">RECORDED FROM A REAL PAYPAL SANDBOX RUN</span>
+      <dl class="kv"><dt>Approved fingerprint</dt><dd><span class="mono">${esc(rgate ? rgate.fingerprint : "")}</span> ${rgate && rgate.fingerprint === a.approval.fingerprint ? '<span class="ok-t">same as the one you just approved: same quote, same fingerprint</span>' : ""}</dd><dt>Invoice ID</dt><dd class="mono">${esc(created.invoice_id)}</dd><dt>Created</dt><dd>${esc(created.ts.replace("T"," "))} as ${esc(created.status)}, $${esc(created.amount)}</dd>
+      <dt>Sent</dt><dd>${esc(sent.ts.replace("T"," "))}, PayPal status ${esc(sent.status)}</dd></dl>`
+      : `<p class="note">This quote was not sent to the PayPal sandbox for the demo. Only Tola's quote was taken through a real sandbox payment (Scenario 1). To create a real sandbox invoice yourself, follow the README with your own sandbox keys.</p>`) +
+    `<div class="gaterow"><button class="btn ghost" id="tamper">Try to change the deposit by $1 after approval</button></div><div id="tamperout" class="out"></div>`);
+  $("#tamper").onclick = () => {
+    const t = call("tamper"); liveLog = t.log; renderLog();
+    $("#tamperout").innerHTML = t.refused
+      ? `<span class="ok-t">Refused by the code:</span> <span class="mono">${esc(t.error)}</span><br><span class="note">Fingerprint approved: ${esc(t.before)}. Fingerprint of the changed quote: ${esc(t.after)}.</span>`
+      : `<span class="bad-t">Not refused.</span>`;
+    $("#tamper").disabled = true;
+  };
+  setSt(4, isTola ? "recorded" : "done"); setArc(4, "done"); await sleep(500);
+
+  // 6 Paid + tracker
+  setSt(5, "active"); center("Paid?", "only PayPal can say"); await sleep(500);
+  if (!isTola){
+    card("ok", head("6. Paid + Tracker", "PayPal decides", "pp") +
+      `<p class="why">The loop only marks a job as paid when PayPal's own record says PAID, the amount matches the approved deposit to the cent, and there is a real PayPal transaction ID. Pick Scenario 1 to see a real sandbox payment close the cycle.</p>`);
+    setSt(5, null); center("Invoice ready", "waiting for the client to pay");
+    return;
+  }
+  const t = call("track", paid.invoice_id, paid.payment_id, "2026-11-09T00:00:00");
+  liveLog = t.log; renderLog();
+  const r2 = t.record;
+  card("rec", head("6. Paid + Tracker", "PayPal decides", "pp") +
+    `<p class="why">The AI never says "paid". The loop asked PayPal for the invoice and accepted it only because the status was PAID (not MARKED_AS_PAID), the amount matched $${q.deposit}.00 to the cent, and PayPal returned a real transaction ID.</p>` +
+    `<span class="reclabel">RECORDED FROM A REAL PAYPAL SANDBOX RUN</span>
+    <dl class="kv"><dt>Confirmed</dt><dd>${esc(paid.ts.replace("T"," "))}: PAID, $${esc(paid.amount)}</dd><dt>PayPal payment ID</dt><dd class="mono">${esc(paid.payment_id)}</dd><dt>Real tracker result</dt><dd>${esc(tr.status)}, build due ${esc(tr.due_by)}, balance $${esc(tr.queued[0].amount)} queued</dd></dl>` +
+    `<span class="reclabel" style="color:var(--ok);border-color:#1f5a41">TRACKER CODE, RUNNING IN YOUR BROWSER ON THAT CONFIRMATION</span>
+    <dl class="kv"><dt>Client record</dt><dd>${esc(r2.client_name)}: <b class="ok-t">${esc(r2.status)}</b></dd><dt>Build clock</dt><dd>started ${esc(r2.build_clock.started_at.slice(0,10))}, due by ${esc(r2.build_clock.due_by)} (longest end of "${esc(r2.quote.weeks)}")</dd>
+    <dt>Next turn</dt><dd>${r2.next_invoices.map(n => `${esc(n.type)} invoice $${n.amount}, ${esc(n.trigger)}, ${esc(n.status)}`).join("; ")}</dd>
+    <dt>Same payment again</dt><dd>${t.again_changed ? '<span class="bad-t">counted twice</span>' : "changed nothing (no double counting)"}</dd></dl>` +
+    `<p class="note">PayPal stamps the payment in US Pacific time, so it shows 9 Nov even though it was paid on the morning of 10 Nov in Lagos.</p>` +
+    `<p class="krebs">Krebs view: the paid deposit is the ATP. The client record is the oxaloacetate, regenerated and ready for the next turn: the balance invoice.</p>`);
+  setSt(5, "recorded"); setArc(5, "done");
+  center("Turn complete", `$${q.deposit} deposit confirmed by PayPal`);
+}
+
+drawRing(); boot();
+})();
+</script>
+</body>
+</html>
