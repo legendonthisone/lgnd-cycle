@@ -4,8 +4,9 @@ A quote-to-payment agent loop for small web studios, built for the PayPal AI Hac
 
 The AI reads the client's enquiry. Plain code sets the price and checks the AI. A human approves. PayPal invoices the deposit. And only PayPal's own record can mark it paid, never the AI.
 
-## Live demo
-https://legendonthisone.github.io/lgnd-cycle/
+## Live demo and video
+- Live demo: https://legendonthisone.github.io/lgnd-cycle/
+- Demo video (under 3 minutes): https://youtu.be/PLvkqaeUYM4
 
 The demo page downloads the real lgnd_cycle package from this repo and runs it in your browser with Pyodide. No server, no keys. Intake answers are replayed from real Claude on Amazon Bedrock recordings. The PayPal stations show a real sandbox run (docs/recorded/), marked in blue, because invoice keys cannot live in a public web page.
 
